@@ -11,37 +11,32 @@ public class LoginManager {
         userCredentials.put("user", "user123");
     }
 
-    public boolean login() {
+    public String login() {
         Console console = System.console();
         if (console == null) {
             System.out.println("Couldn't get Console instance");
-            return false;
+            return null;
         }
 
         System.out.print("Username: ");
         String username = console.readLine();
 
         System.out.print("Password: ");
-        StringBuilder passwordBuilder = new StringBuilder();
-        try {
-            while (true) {
-                char passChar = (char) System.in.read();
-                if (passChar == '\n' || passChar == '\r') break; // Enter key pressed
-                passwordBuilder.append(passChar);
-                System.out.print("*");
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        String password = passwordBuilder.toString();
+        char[] passwordArray = console.readPassword(); 
+        String password = new String(passwordArray);
 
         String correctPassword = userCredentials.get(username);
-        return correctPassword != null && correctPassword.equals(password);
+        if (correctPassword != null && correctPassword.equals(password)) {
+            return username; 
+        } else {
+            return null; 
+        }
     }
 
     public static void main(String[] args) {
         LoginManager manager = new LoginManager();
-        if (manager.login()) {
+        String user = manager.login();
+        if (user != null) {
             System.out.println("\nLogin successful.");
         } else {
             System.out.println("\nLogin failed.");

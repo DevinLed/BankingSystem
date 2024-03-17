@@ -10,7 +10,9 @@ public class Customer {
         this.name = name;
         this.account = account;
     }
-
+    public String getName() {
+        return name;
+    }
     public Account getAccount() {
         return this.account;
     }

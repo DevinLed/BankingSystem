@@ -32,15 +32,17 @@ public class AdvancedBankingSystem {
 
     private static void handleLogin() {
         LoginManager loginManager = new LoginManager();
-
-        while (!loginManager.login()) {
+    
+        String loggedInUser = loginManager.login();
+        while (loggedInUser == null) {
             System.out.println("Login failed. Please try again.");
+            loggedInUser = loginManager.login();
         }
         System.out.println("Login successful!");
         Bank bank = new Bank("My Bank");
-        bank.mainMenu();
+        bank.mainMenu(loggedInUser); // Now passing the logged in username for the menu inclusion
     }
-
+    
     private static void printWelcomeScreen() {
         System.out.println(
             "__________                __     ________              .__        \n" +
