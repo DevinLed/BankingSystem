@@ -6,6 +6,7 @@ import java.util.Scanner;
 public class Bank {
     private String name;
     private List<Customer> customers = new ArrayList<>();
+    private TransactionManager transactionManager = new TransactionManager();
     private Scanner scanner = new Scanner(System.in);
 
     Bank(String name) {
@@ -15,6 +16,7 @@ public class Bank {
     public String getName() {
         return name;
     }
+
     private void createAccount() {
         scanner.nextLine(); // Flush the buffer
         System.out.print("Enter customer name: ");
@@ -28,10 +30,11 @@ public class Bank {
         customers.add(customer);
         System.out.println("Account created successfully.");
     }
+
     private void closeAccount(Customer customer) {
         System.out.println("Are you sure you want to close the account? (yes/no)");
         String confirmation = scanner.next().toLowerCase();
-    
+
         if (confirmation.equals("yes")) {
             if (customers.remove(customer)) {
                 System.out.println("Account closed successfully.");
@@ -42,18 +45,19 @@ public class Bank {
             System.out.println("Account closure canceled.");
         }
     }
+
     private void closeSetAccount() {
         System.out.print("Enter account number to close: ");
         String accountNumber = scanner.next();
         Optional<Customer> customerOptional = customers.stream()
                 .filter(c -> c.getAccount().getAccountNumber().equals(accountNumber))
                 .findFirst();
-    
+
         if (customerOptional.isPresent()) {
             Customer customer = customerOptional.get();
             System.out.println("Are you sure you want to close the account? (yes/no)");
             String confirmation = scanner.next().toLowerCase();
-    
+
             if ("yes".equals(confirmation)) {
                 if (customers.remove(customer)) {
                     System.out.println("Account closed successfully.");
@@ -67,11 +71,11 @@ public class Bank {
             System.out.println("Account not found.");
         }
     }
-    
+
     private void checkAccountBalance(Customer customer) {
         System.out.println("Account balance: $" + customer.getAccount().getBalance());
     }
-    
+
     public void addCustomer() {
         System.out.print("Enter customer name: ");
         scanner.nextLine();
@@ -86,47 +90,27 @@ public class Bank {
         System.out.println("Customer added successfully.");
     }
 
-    public void deposit() {
-        System.out.print("Enter account number: ");
-        String accountNumber = scanner.next();
-        System.out.print("Enter deposit amount: ");
-        double amount = scanner.nextDouble();
-        for (Customer customer : customers) {
-            if (customer.getAccount().getAccountNumber().equals(accountNumber)) {
-                customer.getAccount().deposit(amount);
-                System.out.println("Deposited $" + amount + " to account " + accountNumber);
-                return;
-            }
-        }
-        System.out.println("Account not found.");
-    }
-
-    public void withdraw() {
-        System.out.print("Enter account number: ");
-        String accountNumber = scanner.next();
-        System.out.print("Enter withdrawal amount: ");
-        double amount = scanner.nextDouble();
-        for (Customer customer : customers) {
-            if (customer.getAccount().getAccountNumber().equals(accountNumber)) {
-                boolean success = customer.getAccount().withdraw(amount);
-                if (success) {
-                    System.out.println("Withdrew $" + amount + " from account " + accountNumber);
-                } else {
-                    System.out.println("Insufficient funds.");
-                }
-                return;
-            }
-        }
-        System.out.println("Account not found or insufficient funds.");
-    }
-
     public void performComplianceChecks() {
         System.out.println("Performing compliance checks...");
+    }
+
+    private Optional<Customer> findCustomerByAccountNumber(String accountNumber) {
+        return customers.stream()
+                .filter(c -> c.getAccount().getAccountNumber().equals(accountNumber))
+                .findFirst();
     }
 
     public void transactionsMenu() {
         if (customers.isEmpty()) {
             System.out.println("No accounts found. Please create an account first.");
+            return;
+        }
+
+        System.out.print("Enter account number: ");
+        String accountNumber = scanner.next();
+        Optional<Customer> customerOptional = findCustomerByAccountNumber(accountNumber);
+        if (!customerOptional.isPresent()) {
+            System.out.println("Account not found.");
             return;
         }
 
@@ -137,29 +121,37 @@ public class Bank {
             System.out.println("2: Withdraw");
             System.out.println("3: Transfer");
             System.out.println("4: Bank Draft");
-            System.out.println("5: Wire Transfer");
-            System.out.println("6: RRSP");
-            System.out.println("7: TFSA");
-            System.out.println("8: Back to Main Menu");
+            System.out.println("5: Balance Inquiry");
+            System.out.println("6: Exit to Main Menu");
             System.out.print("Enter your choice: ");
 
             int choice = scanner.nextInt();
             switch (choice) {
                 case 1:
-                    deposit();
+                    transactionManager.deposit(customers, accountNumber);
                     break;
                 case 2:
-                    withdraw();
+                    transactionManager.withdraw(customers, accountNumber);
                     break;
-                case 8:
+                case 3:
+                    transactionManager.transfer(customers, accountNumber);
+                    break;
+                case 4:
+                    transactionManager.bankDraft(customers, accountNumber);
+                    break;
+                case 5:
+                    transactionManager.balanceInquiry(customers, accountNumber);
+                    break;
+                case 6:
                     running = false;
                     break;
                 default:
-                    System.out.println("Feature not implemented or invalid choice.");
+                    System.out.println("Invalid choice. Please try again.");
                     break;
             }
         }
     }
+
     public void accountMenu() {
         boolean running = true;
         while (running) {
@@ -168,7 +160,7 @@ public class Bank {
             System.out.println("2: Close Account");
             System.out.println("3: Return");
             System.out.print("Enter your choice: ");
-    
+
             int choice = scanner.nextInt();
             switch (choice) {
                 case 1:
@@ -187,8 +179,23 @@ public class Bank {
             }
         }
     }
-    
-    public void mainMenu() {
+
+    public void printAllCustomers() {
+        System.out.println("\nAll Current Clients:");
+        if (customers.isEmpty()) {
+            System.out.println("No clients found.");
+            return;
+        }
+        for (Customer customer : customers) {
+            Account account = customer.getAccount();
+            System.out.println("Account Number: " + account.getAccountNumber());
+            System.out.println("Customer Name: " + customer.getName());
+            System.out.println("Balance: $" + account.getBalance());
+            System.out.println("---------------");
+        }
+    }
+
+    public void mainMenu(String loggedInUser) {
         boolean running = true;
         while (running) {
             System.out.println("\nMain Menu:");
@@ -196,7 +203,12 @@ public class Bank {
             System.out.println("2: Transactions");
             System.out.println("3: Account");
             System.out.println("4: Settings");
-            System.out.println("5: Exit");
+            if ("admin".equals(loggedInUser)) {
+                System.out.println("5: Print all current clients");
+                System.out.println("6: Exit");
+            } else {
+                System.out.println("5: Exit");
+            }
             System.out.print("Enter your choice: ");
 
             int choice = scanner.nextInt();
@@ -214,8 +226,20 @@ public class Bank {
                     System.out.println("Settings are not implemented yet.");
                     break;
                 case 5:
-                    running = false;
-                    System.out.println("Exiting...");
+                    if ("admin".equals(loggedInUser)) {
+                        printAllCustomers();
+                    } else {
+                        running = false;
+                        System.out.println("Exiting...");
+                    }
+                    break;
+                case 6:
+                    if ("admin".equals(loggedInUser)) {
+                        running = false;
+                        System.out.println("Exiting...");
+                    } else {
+                        System.out.println("Invalid choice. Please enter a number between 1 and 5.");
+                    }
                     break;
                 default:
                     System.out.println("Invalid choice. Please enter a number between 1 and 5.");
@@ -223,6 +247,7 @@ public class Bank {
             }
         }
     }
+
     public void manageIdentification(Customer customer) {
         boolean running = true;
         while (running) {
@@ -232,7 +257,7 @@ public class Bank {
             System.out.println("3. Check identification");
             System.out.println("4. Return to Customer Menu");
             System.out.print("Enter your choice: ");
-    
+
             int choice = scanner.nextInt();
             switch (choice) {
                 case 1:
@@ -253,8 +278,7 @@ public class Bank {
             }
         }
     }
-    
-    
+
     private void enterNewIdentification(Customer customer) {
         System.out.print("Enter new identification (max 10 digits): ");
         String newId = scanner.next();
@@ -265,7 +289,7 @@ public class Bank {
             System.out.println("Invalid identification. Please ensure it is max 10 digits.");
         }
     }
-    
+
     private void updateIdentification(Customer customer) {
         System.out.print("Enter existing identification: ");
         String existingId = scanner.next();
@@ -282,7 +306,7 @@ public class Bank {
             System.out.println("Identification mismatch.");
         }
     }
-    
+
     private void checkIdentification(Customer customer) {
         String id = customer.getIdentificationNumber();
         if (id != null && !id.isEmpty()) {
@@ -291,7 +315,7 @@ public class Bank {
             System.out.println("No identification set for this account.");
         }
     }
-    
+
     public void manageContactDetails(Customer customer) {
         boolean running = true;
         while (running) {
@@ -300,7 +324,7 @@ public class Bank {
             System.out.println("2. Email");
             System.out.println("3. Return to Customer Menu");
             System.out.print("Enter your choice: ");
-    
+
             int choice = scanner.nextInt();
             switch (choice) {
                 case 1:
@@ -318,8 +342,7 @@ public class Bank {
             }
         }
     }
-    
-    
+
     private void managePhone(Customer customer) {
         System.out.println("Phone Management:");
         System.out.println("1. Enter new phone number");
@@ -327,7 +350,7 @@ public class Bank {
         System.out.println("3. Remove phone number");
         System.out.println("4. Back");
         System.out.print("Enter your choice: ");
-    
+
         int choice = scanner.nextInt();
         switch (choice) {
             case 1:
@@ -347,7 +370,7 @@ public class Bank {
                 break;
         }
     }
-    
+
     private void manageEmail(Customer customer) {
         System.out.println("Email Management:");
         System.out.println("1. Enter new email");
@@ -355,7 +378,7 @@ public class Bank {
         System.out.println("3. Remove email");
         System.out.println("4. Back");
         System.out.print("Enter your choice: ");
-    
+
         int choice = scanner.nextInt();
         switch (choice) {
             case 1:
@@ -375,7 +398,7 @@ public class Bank {
                 break;
         }
     }
-    
+
     private void enterNewPhoneNumber(Customer customer) {
         System.out.print("Enter new phone number (max 10 digits): ");
         String newPhone = scanner.next();
@@ -386,7 +409,7 @@ public class Bank {
             System.out.println("Invalid phone number. Please ensure it is max 10 digits.");
         }
     }
-    
+
     private void updatePhoneNumber(Customer customer) {
         System.out.print("Enter existing phone number: ");
         String existingPhone = scanner.next();
@@ -403,12 +426,12 @@ public class Bank {
             System.out.println("Phone number mismatch.");
         }
     }
-    
+
     private void removePhoneNumber(Customer customer) {
         customer.setPhone(null);
         System.out.println("Phone number removed successfully.");
     }
-    
+
     private void enterNewEmail(Customer customer) {
         System.out.print("Enter new email address: ");
         String newEmail = scanner.next();
@@ -419,7 +442,7 @@ public class Bank {
             System.out.println("Invalid email address format.");
         }
     }
-    
+
     private void updateEmail(Customer customer) {
         System.out.print("Enter existing email address: ");
         String existingEmail = scanner.next();
@@ -436,17 +459,17 @@ public class Bank {
             System.out.println("Email address mismatch.");
         }
     }
-    
+
     private void removeEmail(Customer customer) {
         customer.setEmail(null);
         System.out.println("Email address removed successfully.");
     }
-    
+
     private boolean isValidEmail(String email) {
         // Simple email format validation (requires '@')
         return email.contains("@");
     }
-    
+
     public void manageAddress(Customer customer) {
         boolean running = true;
         while (running) {
@@ -457,7 +480,7 @@ public class Bank {
             System.out.println("4. Remove address");
             System.out.println("5. Back");
             System.out.print("Enter your choice: ");
-    
+
             int choice = scanner.nextInt();
             scanner.nextLine(); // Consume the newline left-over
             switch (choice) {
@@ -474,7 +497,7 @@ public class Bank {
                     removeAddress(customer);
                     break;
                 case 5:
-                    running = false; 
+                    running = false;
                     break;
                 default:
                     System.out.println("Invalid choice. Please try again.");
@@ -482,9 +505,7 @@ public class Bank {
             }
         }
     }
-    
-    
-    
+
     private void enterNewAddress(Customer customer) {
         System.out.print("Enter new address:\n1. # & Street: ");
         String street = scanner.nextLine();
@@ -494,12 +515,12 @@ public class Bank {
         String province = scanner.nextLine();
         System.out.print("4. Postal Code: ");
         String postalCode = scanner.nextLine();
-    
+
         Address address = new Address(street, city, province, postalCode);
         customer.setAddress(address);
         System.out.println("Address updated successfully.");
     }
-    
+
     private void updateAddress(Customer customer) {
         System.out.print("Do you want to update the existing address? (y/n): ");
         String updateChoice = scanner.next().toLowerCase();
@@ -508,7 +529,7 @@ public class Bank {
             enterNewAddress(customer);
         }
     }
-    
+
     private void addressInquiry(Customer customer) {
         Address address = customer.getAddress();
         if (address != null) {
@@ -521,20 +542,19 @@ public class Bank {
             System.out.println("No address found for the account.");
         }
     }
-    
+
     private void removeAddress(Customer customer) {
         customer.setAddress(null);
         System.out.println("Address removed successfully.");
     }
-    
-    
+
     public void customerMenu() {
         System.out.print("Enter account number: ");
         String accountNumber = scanner.next();
         Optional<Customer> customerOptional = customers.stream()
                 .filter(c -> c.getAccount().getAccountNumber().equals(accountNumber))
                 .findFirst();
-    
+
         if (!customerOptional.isPresent()) {
             System.out.println("Customer not found. Do you want to create a new account? (y/n): ");
             String choice = scanner.next();
@@ -543,7 +563,7 @@ public class Bank {
             }
             return;
         }
-    
+
         Customer customer = customerOptional.get();
         boolean running = true;
         while (running) {
@@ -555,7 +575,7 @@ public class Bank {
             System.out.println("5. Address");
             System.out.println("6. Return to Main Menu");
             System.out.print("Enter your choice: ");
-    
+
             int choice = scanner.nextInt();
             switch (choice) {
                 case 1:
@@ -582,5 +602,5 @@ public class Bank {
             }
         }
     }
-    
+
 }
